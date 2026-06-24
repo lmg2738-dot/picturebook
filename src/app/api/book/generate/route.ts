@@ -1,12 +1,8 @@
-import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import { getOpenRouterApiKey } from "@/lib/openrouter/config";
-import {
-  bookInputSchema,
-  createBook,
-  runBookGenerationPipeline,
-} from "@/lib/pipeline/generate-book";
+import { bookInputSchema, createBook } from "@/lib/pipeline/generate-book-schema";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
@@ -29,18 +25,10 @@ export async function POST(request: Request) {
 
     const bookId = await createBook(parsed.data);
 
-    after(async () => {
-      try {
-        await runBookGenerationPipeline(bookId, parsed.data);
-      } catch (err) {
-        console.error(`Book generation failed for ${bookId}:`, err);
-      }
-    });
-
     return NextResponse.json({
       bookId,
       status: "pending",
-      message: "그림책 생성이 시작되었습니다.",
+      message: "그림책 생성이 시작되었습니다. 브라우저에서 단계별로 진행합니다.",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "서버 오류";
