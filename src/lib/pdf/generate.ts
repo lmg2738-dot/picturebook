@@ -104,8 +104,9 @@ async function embedPageImage(
   const buffer = Buffer.from(bytes);
   const format = detectImageFormat(buffer);
 
+  // pdf-lib 1.x는 SVG 임베딩 미지원 — PNG/JPEG만 PDF에 포함
   if (format === "svg") {
-    return pdfDoc.embedSvg(buffer.toString("utf8"));
+    throw new Error("SVG images are not embedded in PDF");
   }
   if (format === "jpeg") {
     return pdfDoc.embedJpg(bytes);
