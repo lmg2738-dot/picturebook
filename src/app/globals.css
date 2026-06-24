@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+:root {
+  --cream: #f7f3ec;
+  --cream-dark: #ede6d9;
+  --ink: #1a1f2e;
+  --ink-muted: #5c6370;
+  --ink-light: #8b919a;
+  --gold: #b8956b;
+  --gold-light: #d4b896;
+  --gold-dark: #96754a;
+  --sage: #7d8b72;
+  --blush: #e8ddd0;
+  --surface: #fffcf7;
+  --border: rgba(26, 31, 46, 0.08);
+  --shadow: rgba(26, 31, 46, 0.06);
+}
+
+@theme inline {
+  --color-cream: var(--cream);
+  --color-cream-dark: var(--cream-dark);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-light: var(--ink-light);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dark: var(--gold-dark);
+  --color-sage: var(--sage);
+  --color-blush: var(--blush);
+  --color-surface: var(--surface);
+  --font-serif: var(--font-cormorant);
+  --font-sans: var(--font-dm-sans);
+}
+
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+}
+
+::selection {
+  background: rgba(184, 149, 107, 0.25);
+}
+
+.font-serif {
+  font-family: var(--font-cormorant), Georgia, serif;
+}
+
+/* Subtle paper texture */
+.bg-paper {
+  background-color: var(--cream);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+.glass-nav {
+  background: rgba(247, 243, 236, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.card-premium {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px var(--shadow), 0 8px 32px rgba(26, 31, 46, 0.04);
+}
+
+.input-premium {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-premium:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(184, 149, 107, 0.15);
+  outline: none;
+}
+
+.progress-bar {
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold-light));
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out forwards;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--cream-dark) 25%, var(--blush) 50%, var(--cream-dark) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
