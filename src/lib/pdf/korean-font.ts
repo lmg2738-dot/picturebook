@@ -2,11 +2,12 @@ import fs from "fs/promises";
 import path from "path";
 import fontkit from "@pdf-lib/fontkit";
 import type { PDFDocument, PDFFont } from "pdf-lib";
+import { getDataDir } from "@/lib/storage/config";
 
 const FONT_FILE = "NotoSansKR.ttf";
 const FONT_URL =
   "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf";
-const FONT_DIR = path.join(process.cwd(), "data", "fonts");
+const FONT_DIR = path.join(getDataDir(), "fonts");
 
 let cachedFontBytes: Uint8Array | null = null;
 

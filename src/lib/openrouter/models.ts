@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { getOpenRouterApiKey, OPENROUTER_BASE_URL } from "./config";
+import { getDataDir } from "@/lib/storage/config";
 
 export type ModelCapability = "text" | "image";
 
@@ -22,7 +23,7 @@ interface BlocklistData {
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const MAX_MODEL_ATTEMPTS = 5;
-const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIR = getDataDir();
 const BLOCKLIST_PATH = path.join(DATA_DIR, "blocked-models.json");
 
 let cache: ModelsCache | null = null;

@@ -1,28 +1,53 @@
 import fs from "fs/promises";
 import path from "path";
+import { del, list } from "@vercel/blob";
 import { randomUUID } from "crypto";
 import type { Book, BookInput, BookPage, BookStatus, BookWithPages } from "@/lib/types";
 import { TOTAL_PAGES } from "@/lib/constants";
+import {
+  assertStorageReady,
+  bookBlobPath,
+  getDataDir,
+  mediaBlobPath,
+  mediaBlobPrefix,
+  BOOK_PREFIX,
+  useBlobStorage,
+} from "./config";
+import {
+  blobDeletePrefix,
+  blobRead,
+  blobReadText,
+  blobWrite,
+} from "./blob-io";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const BOOKS_DIR = path.join(DATA_DIR, "books");
-const MEDIA_DIR = path.join(DATA_DIR, "media");
+const BOOKS_DIR = () => path.join(getDataDir(), "books");
+const MEDIA_DIR = () => path.join(getDataDir(), "media");
 
-async function ensureDirs() {
-  await fs.mkdir(BOOKS_DIR, { recursive: true });
-  await fs.mkdir(MEDIA_DIR, { recursive: true });
+async function ensureLocalDirs() {
+  await fs.mkdir(BOOKS_DIR(), { recursive: true });
+  await fs.mkdir(MEDIA_DIR(), { recursive: true });
 }
 
-function bookPath(id: string) {
-  return path.join(BOOKS_DIR, `${id}.json`);
+function localBookPath(id: string) {
+  return path.join(BOOKS_DIR(), `${id}.json`);
 }
 
-function mediaDir(bookId: string) {
-  return path.join(MEDIA_DIR, bookId);
+function localMediaDir(bookId: string) {
+  return path.join(MEDIA_DIR(), bookId);
 }
 
 export function mediaUrl(bookId: string, filename: string) {
   return `/api/media/${bookId}/${filename}`;
+}
+
+export async function saveBookDocument(book: BookWithPages): Promise<void> {
+  const json = JSON.stringify(book, null, 2);
+  if (useBlobStorage()) {
+    await blobWrite(bookBlobPath(book.id), json, "application/json");
+    return;
+  }
+  await ensureLocalDirs();
+  await fs.writeFile(localBookPath(book.id), json);
 }
 
 export async function saveMediaFile(
@@ -30,8 +55,22 @@ export async function saveMediaFile(
   filename: string,
   data: Buffer
 ): Promise<string> {
-  await ensureDirs();
-  const dir = mediaDir(bookId);
+  if (useBlobStorage()) {
+    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+    const mime =
+      ext === "svg"
+        ? "image/svg+xml"
+        : ext === "jpg" || ext === "jpeg"
+          ? "image/jpeg"
+          : ext === "pdf"
+            ? "application/pdf"
+            : "image/png";
+    await blobWrite(mediaBlobPath(bookId, filename), data, mime);
+    return mediaUrl(bookId, filename);
+  }
+
+  await ensureLocalDirs();
+  const dir = localMediaDir(bookId);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, filename), data);
   return mediaUrl(bookId, filename);
@@ -41,15 +80,19 @@ export async function readMediaFile(
   bookId: string,
   filename: string
 ): Promise<Buffer | null> {
+  if (useBlobStorage()) {
+    return blobRead(mediaBlobPath(bookId, filename));
+  }
   try {
-    return await fs.readFile(path.join(mediaDir(bookId), filename));
+    return await fs.readFile(path.join(localMediaDir(bookId), filename));
   } catch {
     return null;
   }
 }
 
 export async function createBook(input: BookInput): Promise<string> {
-  await ensureDirs();
+  assertStorageReady();
+
   const id = randomUUID();
   const now = new Date().toISOString();
 
@@ -73,13 +116,18 @@ export async function createBook(input: BookInput): Promise<string> {
     pages: [],
   };
 
-  await fs.writeFile(bookPath(id), JSON.stringify(book, null, 2));
+  await saveBookDocument(book);
   return id;
 }
 
 export async function getBook(id: string): Promise<BookWithPages | null> {
+  if (useBlobStorage()) {
+    const raw = await blobReadText(bookBlobPath(id));
+    if (!raw) return null;
+    return JSON.parse(raw) as BookWithPages;
+  }
   try {
-    const raw = await fs.readFile(bookPath(id), "utf-8");
+    const raw = await fs.readFile(localBookPath(id), "utf-8");
     return JSON.parse(raw) as BookWithPages;
   } catch {
     return null;
@@ -87,13 +135,37 @@ export async function getBook(id: string): Promise<BookWithPages | null> {
 }
 
 export async function getBooks(): Promise<Book[]> {
-  await ensureDirs();
-  const files = (await fs.readdir(BOOKS_DIR)).filter((f) => f.endsWith(".json"));
+  if (useBlobStorage()) {
+    const books: Book[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await list({ prefix: BOOK_PREFIX, cursor });
+      for (const blob of page.blobs) {
+        try {
+          const raw = await blobReadText(blob.pathname);
+          if (!raw) continue;
+          const book = JSON.parse(raw) as BookWithPages;
+          const { pages: _, ...meta } = book;
+          books.push(meta);
+        } catch {
+          // skip corrupt
+        }
+      }
+      cursor = page.hasMore ? page.cursor : undefined;
+    } while (cursor);
+
+    return books.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }
+
+  await ensureLocalDirs();
+  const files = (await fs.readdir(BOOKS_DIR())).filter((f) => f.endsWith(".json"));
 
   const books = await Promise.all(
     files.map(async (file) => {
       try {
-        const raw = await fs.readFile(path.join(BOOKS_DIR, file), "utf-8");
+        const raw = await fs.readFile(path.join(BOOKS_DIR(), file), "utf-8");
         const book = JSON.parse(raw) as BookWithPages;
         const { pages: _, ...meta } = book;
         return meta;
@@ -119,7 +191,7 @@ export async function updateBook(
   Object.assign(book, metaUpdates, { updated_at: new Date().toISOString() });
   if (pages) book.pages = pages;
 
-  await fs.writeFile(bookPath(id), JSON.stringify(book, null, 2));
+  await saveBookDocument(book);
 }
 
 export async function updateBookStatus(
@@ -132,19 +204,33 @@ export async function updateBookStatus(
 }
 
 export async function deleteBook(id: string): Promise<void> {
+  if (useBlobStorage()) {
+    await blobDeletePrefix(mediaBlobPrefix(id));
+    try {
+      const { blobs } = await list({ prefix: bookBlobPath(id), limit: 1 });
+      if (blobs[0]) await del(blobs[0].url);
+    } catch {
+      // ignore
+    }
+    return;
+  }
+
   try {
-    await fs.unlink(bookPath(id));
+    await fs.unlink(localBookPath(id));
   } catch {
     // ignore
   }
   try {
-    await fs.rm(mediaDir(id), { recursive: true, force: true });
+    await fs.rm(localMediaDir(id), { recursive: true, force: true });
   } catch {
     // ignore
   }
 }
 
-export async function addPages(id: string, pages: Omit<BookPage, "id" | "book_id" | "created_at" | "image_url" | "audio_url">[]) {
+export async function addPages(
+  id: string,
+  pages: Omit<BookPage, "id" | "book_id" | "created_at" | "image_url" | "audio_url">[]
+) {
   const book = await getBook(id);
   if (!book) throw new Error("책을 찾을 수 없습니다.");
 
@@ -160,7 +246,7 @@ export async function addPages(id: string, pages: Omit<BookPage, "id" | "book_id
     created_at: now,
   }));
 
-  await fs.writeFile(bookPath(id), JSON.stringify(book, null, 2));
+  await saveBookDocument(book);
 }
 
 export async function updatePage(
@@ -176,5 +262,5 @@ export async function updatePage(
 
   Object.assign(page, updates);
   book.updated_at = new Date().toISOString();
-  await fs.writeFile(bookPath(bookId), JSON.stringify(book, null, 2));
+  await saveBookDocument(book);
 }
