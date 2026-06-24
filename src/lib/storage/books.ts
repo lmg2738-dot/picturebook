@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import { del, list } from "@vercel/blob";
+import { list } from "@vercel/blob";
 import { randomUUID } from "crypto";
 import type { Book, BookInput, BookPage, BookStatus, BookWithPages } from "@/lib/types";
 import { TOTAL_PAGES } from "@/lib/constants";
@@ -14,6 +14,7 @@ import {
   useBlobStorage,
 } from "./config";
 import {
+  blobDelete,
   blobDeletePrefix,
   blobRead,
   blobReadText,
@@ -206,12 +207,7 @@ export async function updateBookStatus(
 export async function deleteBook(id: string): Promise<void> {
   if (useBlobStorage()) {
     await blobDeletePrefix(mediaBlobPrefix(id));
-    try {
-      const { blobs } = await list({ prefix: bookBlobPath(id), limit: 1 });
-      if (blobs[0]) await del(blobs[0].url);
-    } catch {
-      // ignore
-    }
+    await blobDelete(bookBlobPath(id));
     return;
   }
 
