@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BOOK_STATUS_LABELS } from "@/lib/constants";
+import { formatKstDateTime } from "@/lib/utils/kst-time";
 import type { BookStatus } from "@/lib/types";
 
 interface GenerationProgressProps {
@@ -152,8 +153,7 @@ export function GenerationProgress({ bookId, onComplete }: GenerationProgressPro
           )}
           {status.updated_at && (
             <p className="mt-1 text-[10px] text-ink-light">
-              마지막 업데이트:{" "}
-              {new Date(status.updated_at).toLocaleTimeString("ko-KR")}
+              마지막 업데이트: {formatKstDateTime(status.updated_at)}
             </p>
           )}
         </div>

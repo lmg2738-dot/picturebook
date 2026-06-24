@@ -1,15 +1,8 @@
 import { getBook, saveBookDocument } from "./books";
+import { formatKstTime } from "@/lib/utils/kst-time";
 import type { Book, BookPage, BookStatus, BookWithPages } from "@/lib/types";
 
 const MAX_LOG_ENTRIES = 12;
-
-function formatLogTime(): string {
-  return new Date().toLocaleTimeString("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
 
 /** 파이프라인 실행 중 메모리에 책 상태를 유지해 스토리지 I/O를 줄입니다. */
 export class BookSession {
@@ -49,7 +42,7 @@ export class BookSession {
   }
 
   appendLog(message: string) {
-    const entry = `${formatLogTime()} · ${message}`;
+    const entry = `${formatKstTime()} · ${message}`;
     this.book.generation_log = [entry, ...(this.book.generation_log ?? [])].slice(
       0,
       MAX_LOG_ENTRIES
