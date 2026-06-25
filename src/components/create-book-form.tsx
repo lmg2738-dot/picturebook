@@ -85,12 +85,14 @@ export function CreateBookForm() {
 
   if (bookId) {
     return (
-      <Card padding="lg">
-        <GenerationProgress
-          bookId={bookId}
-          onComplete={() => router.push(`/book/${bookId}`)}
-        />
-      </Card>
+      <div className="mx-auto max-w-3xl">
+        <Card padding="lg">
+          <GenerationProgress
+            bookId={bookId}
+            onComplete={() => router.push(`/book/${bookId}`)}
+          />
+        </Card>
+      </div>
     );
   }
 

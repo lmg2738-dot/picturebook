@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { GenerationPageGallery } from "@/components/generation-page-gallery";
 import { BOOK_STATUS_LABELS } from "@/lib/constants";
 import { formatKstDateTime } from "@/lib/utils/kst-time";
 import type { BookStatus } from "@/lib/types";
@@ -8,6 +9,12 @@ import type { BookStatus } from "@/lib/types";
 interface GenerationProgressProps {
   bookId: string;
   onComplete?: () => void;
+}
+
+interface StatusPage {
+  page_no: number;
+  story: string;
+  image_url: string | null;
 }
 
 interface StatusResponse {
@@ -18,6 +25,7 @@ interface StatusResponse {
   status_message: string | null;
   images_done: number;
   images_total: number;
+  pages: StatusPage[];
   generation_log: string[];
   updated_at: string;
 }
@@ -238,6 +246,14 @@ export function GenerationProgress({ bookId, onComplete }: GenerationProgressPro
             ))}
           </ul>
         </div>
+      )}
+
+      {status?.pages && status.pages.length > 0 && (
+        <GenerationPageGallery
+          pages={status.pages}
+          imagesDone={status.images_done}
+          imagesTotal={status.images_total}
+        />
       )}
 
       {status?.status === "failed" && (

@@ -13,6 +13,13 @@ export async function GET(
   }
 
   const imagesDoneFromPages = book.pages.filter((p) => p.image_url).length;
+  const pages = [...book.pages]
+    .sort((a, b) => a.page_no - b.page_no)
+    .map((p) => ({
+      page_no: p.page_no,
+      story: p.story,
+      image_url: p.image_url,
+    }));
 
   return NextResponse.json({
     id: book.id,
@@ -23,6 +30,7 @@ export async function GET(
     status_message: book.status_message ?? null,
     images_done: book.images_done ?? imagesDoneFromPages,
     images_total: book.images_total ?? book.pages.length,
+    pages,
     generation_log: book.generation_log ?? [],
     updated_at: book.updated_at,
   });

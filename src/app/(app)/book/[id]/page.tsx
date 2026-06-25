@@ -19,7 +19,7 @@ export default async function BookPage({
 
   if (book.status !== "completed") {
     return (
-      <div className="mx-auto max-w-lg space-y-6">
+      <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-gold">Creating</p>
