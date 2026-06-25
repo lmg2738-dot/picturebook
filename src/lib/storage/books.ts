@@ -1,6 +1,5 @@
 import fs from "fs/promises";
 import path from "path";
-import { list } from "@vercel/blob";
 import { randomUUID } from "crypto";
 import type { Book, BookInput, BookPage, BookStatus, BookWithPages } from "@/lib/types";
 import { TOTAL_PAGES } from "@/lib/constants";
@@ -10,16 +9,16 @@ import {
   getDataDir,
   mediaBlobPath,
   mediaBlobPrefix,
-  BOOK_PREFIX,
-  useBlobStorage,
+  useRemoteStorage,
 } from "./config";
 import {
-  blobDelete,
-  blobDeletePrefix,
-  blobRead,
-  blobReadText,
-  blobWrite,
-} from "./blob-io";
+  remoteDelete,
+  remoteDeletePrefix,
+  remoteListJsonKeys,
+  remoteRead,
+  remoteReadText,
+  remoteWrite,
+} from "./remote-io";
 
 const BOOKS_DIR = () => path.join(getDataDir(), "books");
 const MEDIA_DIR = () => path.join(getDataDir(), "media");
@@ -43,8 +42,8 @@ export function mediaUrl(bookId: string, filename: string) {
 
 export async function saveBookDocument(book: BookWithPages): Promise<void> {
   const json = JSON.stringify(book, null, 2);
-  if (useBlobStorage()) {
-    await blobWrite(bookBlobPath(book.id), json, "application/json");
+  if (useRemoteStorage()) {
+    await remoteWrite(bookBlobPath(book.id), json, "application/json");
     return;
   }
   await ensureLocalDirs();
@@ -56,7 +55,7 @@ export async function saveMediaFile(
   filename: string,
   data: Buffer
 ): Promise<string> {
-  if (useBlobStorage()) {
+  if (useRemoteStorage()) {
     const ext = filename.split(".").pop()?.toLowerCase() ?? "";
     const mime =
       ext === "svg"
@@ -66,7 +65,7 @@ export async function saveMediaFile(
           : ext === "pdf"
             ? "application/pdf"
             : "image/png";
-    await blobWrite(mediaBlobPath(bookId, filename), data, mime);
+    await remoteWrite(mediaBlobPath(bookId, filename), data, mime);
     return mediaUrl(bookId, filename);
   }
 
@@ -81,8 +80,8 @@ export async function readMediaFile(
   bookId: string,
   filename: string
 ): Promise<Buffer | null> {
-  if (useBlobStorage()) {
-    return blobRead(mediaBlobPath(bookId, filename));
+  if (useRemoteStorage()) {
+    return remoteRead(mediaBlobPath(bookId, filename));
   }
   try {
     return await fs.readFile(path.join(localMediaDir(bookId), filename));
@@ -122,8 +121,8 @@ export async function createBook(input: BookInput): Promise<string> {
 }
 
 export async function getBook(id: string): Promise<BookWithPages | null> {
-  if (useBlobStorage()) {
-    const raw = await blobReadText(bookBlobPath(id));
+  if (useRemoteStorage()) {
+    const raw = await remoteReadText(bookBlobPath(id));
     if (!raw) return null;
     return JSON.parse(raw) as BookWithPages;
   }
@@ -136,24 +135,20 @@ export async function getBook(id: string): Promise<BookWithPages | null> {
 }
 
 export async function getBooks(): Promise<Book[]> {
-  if (useBlobStorage()) {
+  if (useRemoteStorage()) {
     const books: Book[] = [];
-    let cursor: string | undefined;
-    do {
-      const page = await list({ prefix: BOOK_PREFIX, cursor });
-      for (const blob of page.blobs) {
-        try {
-          const raw = await blobReadText(blob.pathname);
-          if (!raw) continue;
-          const book = JSON.parse(raw) as BookWithPages;
-          const { pages: _, ...meta } = book;
-          books.push(meta);
-        } catch {
-          // skip corrupt
-        }
+    const keys = await remoteListJsonKeys("storyseed/books/");
+    for (const key of keys) {
+      try {
+        const raw = await remoteReadText(key);
+        if (!raw) continue;
+        const book = JSON.parse(raw) as BookWithPages;
+        const { pages: _, ...meta } = book;
+        books.push(meta);
+      } catch {
+        // skip corrupt
       }
-      cursor = page.hasMore ? page.cursor : undefined;
-    } while (cursor);
+    }
 
     return books.sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -205,9 +200,9 @@ export async function updateBookStatus(
 }
 
 export async function deleteBook(id: string): Promise<void> {
-  if (useBlobStorage()) {
-    await blobDeletePrefix(mediaBlobPrefix(id));
-    await blobDelete(bookBlobPath(id));
+  if (useRemoteStorage()) {
+    await remoteDeletePrefix(mediaBlobPrefix(id));
+    await remoteDelete(bookBlobPath(id));
     return;
   }
 
