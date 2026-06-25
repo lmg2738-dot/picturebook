@@ -19,6 +19,8 @@ import {
   remoteReadText,
   remoteWrite,
 } from "./remote-io";
+import { resetStorageIfConfigured } from "./storage-reset";
+import { formatKstTime } from "@/lib/utils/kst-time";
 
 const BOOKS_DIR = () => path.join(getDataDir(), "books");
 const MEDIA_DIR = () => path.join(getDataDir(), "media");
@@ -93,8 +95,15 @@ export async function readMediaFile(
 export async function createBook(input: BookInput): Promise<string> {
   assertStorageReady();
 
+  const resetResult = await resetStorageIfConfigured();
+
   const id = randomUUID();
   const now = new Date().toISOString();
+  const initialLog: string[] = resetResult
+    ? [
+        `${formatKstTime()} · 기존 ${resetResult.deletedBooks}권 삭제 (스토리지 용량 초기화)`,
+      ]
+    : [];
 
   const book: BookWithPages = {
     id,
@@ -107,10 +116,12 @@ export async function createBook(input: BookInput): Promise<string> {
     progress: 0,
     error_message: null,
     pdf_url: null,
-    status_message: "생성 대기 중...",
+    status_message: resetResult
+      ? "기존 데이터를 정리했어요. 곧 스토리를 작성합니다..."
+      : "생성 대기 중...",
     images_done: 0,
     images_total: TOTAL_PAGES,
-    generation_log: [],
+    generation_log: initialLog,
     created_at: now,
     updated_at: now,
     pages: [],

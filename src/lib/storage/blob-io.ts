@@ -67,12 +67,18 @@ export async function blobDelete(pathname: string): Promise<void> {
 }
 
 export async function blobDeletePrefix(prefix: string): Promise<void> {
-  let cursor: string | undefined;
-  do {
-    const page = await list({ prefix, cursor });
-    if (page.blobs.length > 0) {
-      await del(page.blobs.map((b) => b.url));
-    }
-    cursor = page.hasMore ? page.cursor : undefined;
-  } while (cursor);
+  try {
+    let cursor: string | undefined;
+    do {
+      const page = await list({ prefix, cursor });
+      if (page.blobs.length > 0) {
+        await del(page.blobs.map((b) => b.url));
+      }
+      cursor = page.hasMore ? page.cursor : undefined;
+    } while (cursor);
+  } catch (err) {
+    if (isBlobSuspendedError(err)) throw wrapBlobError(err);
+    console.error(`[Blob] delete prefix failed (${prefix}):`, err);
+    throw wrapBlobError(err);
+  }
 }

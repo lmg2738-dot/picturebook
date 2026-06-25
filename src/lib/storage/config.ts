@@ -39,6 +39,18 @@ export function getStorageBackend(): StorageBackend {
   return "local";
 }
 
+/**
+ * 새 그림책 생성 전 기존 데이터 전체 삭제 (용량 초기화).
+ * Vercel 배포 환경에서는 기본 true. 로컬은 기본 false.
+ * STORAGE_RESET_ON_GENERATE=false 로 비활성화.
+ */
+export function shouldResetStorageOnGenerate(): boolean {
+  const raw = process.env.STORAGE_RESET_ON_GENERATE?.trim().toLowerCase();
+  if (raw === "false" || raw === "0" || raw === "no") return false;
+  if (raw === "true" || raw === "1" || raw === "yes") return true;
+  return Boolean(process.env.VERCEL);
+}
+
 /** 로컬: ./data · Vercel/서버리스: /tmp (보조 캐시만) */
 export function getDataDir(): string {
   if (process.env.DATA_DIR?.trim()) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOpenRouterApiKey } from "@/lib/openrouter/config";
 import { bookInputSchema, createBook } from "@/lib/pipeline/generate-book-schema";
+import { shouldResetStorageOnGenerate } from "@/lib/storage/config";
 
 export const maxDuration = 60;
 
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       bookId,
       status: "pending",
+      storageReset: shouldResetStorageOnGenerate(),
       message: "그림책 생성이 시작되었습니다. 브라우저에서 단계별로 진행합니다.",
     });
   } catch (err) {
